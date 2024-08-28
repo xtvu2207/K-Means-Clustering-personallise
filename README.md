@@ -23,7 +23,7 @@ install_and_load_packages(required_packages)
 
 Avec ce script, toutes les bibliothèques nécessaires sont installées si elles ne le sont pas déjà, puis chargées automatiquement, en une seule étape.
 
-### Étape suivante : Compilation du fichier C++ et exécution du code
+### Compilation du fichier C++ et exécution du code
 
 Une fois les bibliothèques installées et chargées, utilisez le code suivant pour compiler le fichier C++ et exécuter la fonction `kmeansMahalanobis` :
 
