@@ -56,7 +56,7 @@ arma::mat kmeans_plusplus_mahalanobis(const arma::mat& data, int k, const arma::
     prob = prob / sum(prob);
     IntegerVector sampled_index = sample(n, 1, true, prob); 
     if (sampled_index[0] <= 0 || sampled_index[0] > n) {
-      Rcpp::stop("Sampled index out of bounds b");
+      Rcpp::stop("L'indice échantillonné est hors des limites");
     }
     centers = join_vert(centers, data.row(sampled_index[0] - 1)); 
   }
