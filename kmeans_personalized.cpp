@@ -17,18 +17,6 @@ arma::mat calculerCentres(const arma::mat& data, const arma::ivec& groupes) {
   return centres;
 }
 
-arma::vec getAnomalyScores(const arma::mat& data) {
-  Environment isotree("package:isotree");
-  Function isolation_forest = isotree["isolation.forest"];
-
-  List iso_model = isolation_forest(Named("data") = data, Named("ntrees") = 600, Named("sample_size") = data.n_rows, Named("ndim") = data.n_cols);
-  
-
-  Function predict = Rcpp::Environment::namespace_env("stats")["predict"];
-  NumericVector scores = predict(iso_model, Named("newdata") = data, Named("type") = "score");
-  
-  return as<arma::vec>(scores);
-}
 
 
 
@@ -37,22 +25,17 @@ arma::vec getAnomalyScores(const arma::mat& data) {
 // [[Rcpp::export]]
 arma::mat kmeans_plusplus_mahalanobis(const arma::mat& data, int k, const arma::mat& cov_inv, const arma::vec& anomaly_scores) {
   int n = data.n_rows;
-  
-  arma::vec weights = arma::ones<arma::vec>(n);
-  double max_score = arma::max(anomaly_scores);
 
-  for (int i = 0; i < n; ++i) {
-    weights(i) = (max_score - anomaly_scores(i)) + 1; // Plus le score est bas, plus le poids est élevé
-  }
+  double min_score = arma::min(anomaly_scores);
+  arma::uvec min_indices = arma::find(anomaly_scores == min_score); 
   
-  weights /= sum(weights);
-  NumericVector weights_r = wrap(weights);
-  IntegerVector sampled_index1 = sample(n, 1, true, weights_r); 
-  if (sampled_index1[0] <= 0 || sampled_index1[0] > n) {
-    Rcpp::stop("Sampled index out of bounds a");
-  }
-  arma::mat centers = data.row(sampled_index1[0]-1);
+  arma::uvec random_idx_vec = arma::randi<arma::uvec>(1, arma::distr_param(0, min_indices.n_elem - 1));
   
+
+  int random_index = min_indices[random_idx_vec(0)];
+
+  arma::mat centers = data.row(random_index);
+
   if (k == 1) {
     return centers;
   }
@@ -84,6 +67,7 @@ arma::mat kmeans_plusplus_mahalanobis(const arma::mat& data, int k, const arma::
   return centers;
 }
 
+
 // Fonction pour obtenir la matrice de covariance rétrécie
 arma::mat getCovShrink(const arma::mat& data) {
   Environment corpcor("package:corpcor");
@@ -94,7 +78,7 @@ arma::mat getCovShrink(const arma::mat& data) {
 
 // Fonction principale pour k-means utilisant la distance de Mahalanobis
 // [[Rcpp::export]]
-List kmeansMahalanobis(const DataFrame& df, int k, int iter_max = 50, int n_repeats = 100) {
+List kmeansMahalanobis(const DataFrame& df, int k, const arma::vec& anomaly_scores, int iter_max = 50, int n_repeats = 100) {
   int n = df.nrows();
   int p = df.size();
   arma::mat data(n, p);
@@ -114,8 +98,10 @@ List kmeansMahalanobis(const DataFrame& df, int k, int iter_max = 50, int n_repe
   }
 
   arma::mat cov_inv = inv(cov_matrix);
-  
-  arma::vec anomaly_scores = getAnomalyScores(data);
+
+  if (anomaly_scores.n_elem != n) {
+    stop("La taille du vecteur des scores d'anomalie ne correspond pas au nombre de lignes des données.");
+  }
 
   for (int h = 0; h < n_repeats; ++h) {
     arma::mat centers = kmeans_plusplus_mahalanobis(data, k, cov_inv,anomaly_scores);
