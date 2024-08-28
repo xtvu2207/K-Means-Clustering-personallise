@@ -26,13 +26,10 @@ arma::mat calculerCentres(const arma::mat& data, const arma::ivec& groupes) {
 arma::mat kmeans_plusplus_mahalanobis(const arma::mat& data, int k, const arma::mat& cov_inv, const arma::vec& anomaly_scores) {
   int n = data.n_rows;
 
-  double min_score = arma::min(anomaly_scores);
-  arma::uvec min_indices = arma::find(anomaly_scores == min_score); 
-  
-  arma::uvec random_idx_vec = arma::randi<arma::uvec>(1, arma::distr_param(0, min_indices.n_elem - 1));
-  
-
-  int random_index = min_indices[random_idx_vec(0)];
+  arma::vec inverse_scores = arma::exp(-anomaly_scores);
+  arma::vec probabilities = inverse_scores / arma::sum(inverse_scores);
+  arma::uvec random_idx_vec = arma::find(arma::randu() < arma::cumsum(probabilities));
+  int random_index = random_idx_vec(0);
 
   arma::mat centers = data.row(random_index);
 
